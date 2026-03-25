@@ -135,6 +135,49 @@ class TestHDF5DatasetMonitorDetectsDatasetCreation:
         assert results[0].labz == 20.0
         assert results[0].center_value == 30.0
 
+    def test_monitor_waits_for_all_datasets_not_just_first(self, hdf5_dir):
+        """Monitor should not proceed until ALL required datasets exist."""
+        filepath = hdf5_dir / "staggered_datasets.nxs"
+        dataset_path = "entry/0/uniformfit/2_2_2/centers"
+        results = []
+
+        def callback(data):
+            results.append(data)
+
+        # Create file with only the first dataset (labx)
+        with h5py.File(filepath, "w", libver="latest") as f:
+            grp = f.create_group(dataset_path)
+            grp.create_dataset("labx", data=np.array([1.0]), maxshape=(None,))
+
+        monitor = HDF5DatasetMonitor(
+            filename=str(filepath),
+            dataset_path=dataset_path,
+            callback=callback,
+            poll_interval=0.1,
+        )
+
+        thread = threading.Thread(target=monitor.run, daemon=True)
+        thread.start()
+
+        # Give time for monitor to see labx but still be waiting
+        time.sleep(0.5)
+        assert len(results) == 0, "Monitor should not emit data before all datasets exist"
+
+        # Now add the remaining datasets
+        with h5py.File(filepath, "a", libver="latest") as f:
+            grp = f[dataset_path]
+            grp.create_dataset("labz", data=np.array([2.0]), maxshape=(None,))
+            grp.create_dataset("values", data=np.array([3.0]), maxshape=(None,))
+
+        time.sleep(1.0)
+        monitor.stop()
+        thread.join(timeout=2.0)
+
+        assert len(results) == 1
+        assert results[0].labx == 1.0
+        assert results[0].labz == 2.0
+        assert results[0].center_value == 3.0
+
 
 class TestHDF5DatasetMonitorStopBehavior:
     def test_stop_terminates_monitor(self, sample_hdf5):

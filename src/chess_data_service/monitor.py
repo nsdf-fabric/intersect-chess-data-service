@@ -62,14 +62,18 @@ class HDF5DatasetMonitor:
             self._stop_event.wait(self.poll_interval)
 
     def _wait_for_dataset(self):
-        """Phase 2: Wait for the target dataset group to exist inside the file."""
-        logger.info("Waiting for dataset '%s' in %s", self.dataset_path, self.filename)
+        """Phase 2: Wait for all required datasets to exist inside the file."""
+        required_paths = [
+            f"{self.dataset_path}/{name}" for name in self.dataset_names
+        ]
+        logger.info(
+            "Waiting for datasets %s in %s", self.dataset_names, self.filename
+        )
         while not self._stop_event.is_set():
             try:
                 with h5py.File(self.filename, "r", libver="latest") as f:
-                    labx_path = f"{self.dataset_path}/{self.dataset_names[0]}"
-                    if labx_path in f:
-                        logger.info("Dataset found: %s", self.dataset_path)
+                    if all(path in f for path in required_paths):
+                        logger.info("All datasets found: %s", self.dataset_path)
                         return
             except OSError:
                 pass
