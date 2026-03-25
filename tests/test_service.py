@@ -1,8 +1,8 @@
 import threading
 from unittest.mock import MagicMock, patch
 
-from chess_data_service.data_models import MonitoringConfig, NewMeasurementData
-from chess_data_service.service import ChessDataEgressCapability
+from intersect_chess_data_service.data_models import MonitoringConfig, NewMeasurementData
+from intersect_chess_data_service.service import ChessDataEgressCapability
 
 
 class TestChessDataEgressCapabilityInit:
@@ -22,7 +22,7 @@ class TestChessDataEgressCapabilityMonitoring:
             filename="/tmp/test.nxs",
             dataset_path="entry/0/uniformfit/2_2_2/centers",
         )
-        with patch("chess_data_service.service.HDF5DatasetMonitor"):
+        with patch("intersect_chess_data_service.service.HDF5DatasetMonitor"):
             result = capability.start_monitoring(config)
         assert "Monitoring" in result
 
@@ -33,7 +33,7 @@ class TestChessDataEgressCapabilityMonitoring:
             dataset_path="entry/0/uniformfit/2_2_2/centers",
         )
         blocker = threading.Event()
-        with patch("chess_data_service.service.HDF5DatasetMonitor") as MockMonitor:
+        with patch("intersect_chess_data_service.service.HDF5DatasetMonitor") as MockMonitor:
             MockMonitor.return_value.run.side_effect = lambda: blocker.wait()
             capability.start_monitoring(config)
             assert capability.status() == "Monitoring"
@@ -46,7 +46,7 @@ class TestChessDataEgressCapabilityMonitoring:
             filename="/tmp/test.nxs",
             dataset_path="entry/0/uniformfit/2_2_2/centers",
         )
-        with patch("chess_data_service.service.HDF5DatasetMonitor"):
+        with patch("intersect_chess_data_service.service.HDF5DatasetMonitor"):
             capability.start_monitoring(config)
             result = capability.stop_monitoring()
         assert "Idle" in result or "Stopped" in result
@@ -57,7 +57,7 @@ class TestChessDataEgressCapabilityMonitoring:
             filename="/tmp/test.nxs",
             dataset_path="entry/0/uniformfit/2_2_2/centers",
         )
-        with patch("chess_data_service.service.HDF5DatasetMonitor"):
+        with patch("intersect_chess_data_service.service.HDF5DatasetMonitor"):
             capability.start_monitoring(config)
             capability.stop_monitoring()
             assert capability.status() == "Idle"
@@ -69,7 +69,7 @@ class TestChessDataEgressCapabilityMonitoring:
             filename="/tmp/test.nxs",
             dataset_path="entry/0/uniformfit/2_2_2/centers",
         )
-        with patch("chess_data_service.service.HDF5DatasetMonitor"):
+        with patch("intersect_chess_data_service.service.HDF5DatasetMonitor"):
             capability.start_monitoring(config)
             # Simulate the thread dying
             capability._monitor_thread.is_alive = lambda: False

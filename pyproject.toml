@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
-chess-data-service = "chess_data_service.cli:main"
+intersect-chess-data-service = "intersect_chess_data_service.cli:main"
 
 [dependency-groups]
 dev = [
@@ -29,7 +29,7 @@ line-length = 100
 quote-style = "double"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/chess_data_service"]
+packages = ["src/intersect_chess_data_service"]
 
 [build-system]
 requires = ["hatchling"]

@@ -9,7 +9,6 @@ COPY src /app/src
 
 RUN uv sync --frozen --no-dev
 
-COPY scripts /app/scripts
 COPY local-conf.json /app/local-conf.json
 
-CMD ["uv", "run", "python", "scripts/launch_service.py"]
+CMD ["intersect-chess-data-service"]

@@ -4,7 +4,7 @@ import time
 import h5py
 import numpy as np
 
-from chess_data_service.monitor import HDF5DatasetMonitor
+from intersect_chess_data_service.monitor import HDF5DatasetMonitor
 
 
 class TestHDF5DatasetMonitorDetectsFileCreation:

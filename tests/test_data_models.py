@@ -1,6 +1,6 @@
 import pytest
 
-from chess_data_service.data_models import MonitoringConfig, NewMeasurementData
+from intersect_chess_data_service.data_models import MonitoringConfig, NewMeasurementData
 
 
 class TestMonitoringConfig:
