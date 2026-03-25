@@ -32,7 +32,6 @@ class ChessDataEgressCapability(IntersectBaseCapabilityImplementation):
         super().__init__()
         self._monitor: HDF5DatasetMonitor | None = None
         self._monitor_thread: threading.Thread | None = None
-        self._monitoring = False
 
     @intersect_message()
     def start_monitoring(self, config: MonitoringConfig) -> str:
@@ -50,7 +49,6 @@ class ChessDataEgressCapability(IntersectBaseCapabilityImplementation):
         )
         self._monitor_thread = threading.Thread(target=self._monitor.run, daemon=True)
         self._monitor_thread.start()
-        self._monitoring = True
 
         logger.info("Monitoring started for %s", config.filename)
         return f"Monitoring {config.filename}"
@@ -65,14 +63,15 @@ class ChessDataEgressCapability(IntersectBaseCapabilityImplementation):
             self._monitor = None
             self._monitor_thread = None
 
-        self._monitoring = False
         logger.info("Monitoring stopped")
         return "Idle"
 
     @intersect_status()
     def status(self) -> str:
         """Return current monitoring status."""
-        return "Monitoring" if self._monitoring else "Idle"
+        if self._monitor_thread is not None and self._monitor_thread.is_alive():
+            return "Monitoring"
+        return "Idle"
 
     def _on_new_data(self, measurement: NewMeasurementData):
         """Callback invoked by the monitor when new data is detected."""

@@ -1,3 +1,4 @@
+import threading
 from unittest.mock import MagicMock, patch
 
 from chess_data_service.data_models import MonitoringConfig, NewMeasurementData
@@ -31,9 +32,13 @@ class TestChessDataEgressCapabilityMonitoring:
             filename="/tmp/test.nxs",
             dataset_path="entry/0/uniformfit/2_2_2/centers",
         )
-        with patch("chess_data_service.service.HDF5DatasetMonitor"):
+        blocker = threading.Event()
+        with patch("chess_data_service.service.HDF5DatasetMonitor") as MockMonitor:
+            MockMonitor.return_value.run.side_effect = lambda: blocker.wait()
             capability.start_monitoring(config)
             assert capability.status() == "Monitoring"
+            blocker.set()
+            capability.stop_monitoring()
 
     def test_stop_monitoring_returns_status(self):
         capability = ChessDataEgressCapability()
@@ -55,6 +60,19 @@ class TestChessDataEgressCapabilityMonitoring:
         with patch("chess_data_service.service.HDF5DatasetMonitor"):
             capability.start_monitoring(config)
             capability.stop_monitoring()
+            assert capability.status() == "Idle"
+
+    def test_status_returns_idle_when_thread_dies(self):
+        """If the monitor thread exits unexpectedly, status should report Idle."""
+        capability = ChessDataEgressCapability()
+        config = MonitoringConfig(
+            filename="/tmp/test.nxs",
+            dataset_path="entry/0/uniformfit/2_2_2/centers",
+        )
+        with patch("chess_data_service.service.HDF5DatasetMonitor"):
+            capability.start_monitoring(config)
+            # Simulate the thread dying
+            capability._monitor_thread.is_alive = lambda: False
             assert capability.status() == "Idle"
 
 
