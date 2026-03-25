@@ -63,12 +63,8 @@ class HDF5DatasetMonitor:
 
     def _wait_for_dataset(self):
         """Phase 2: Wait for all required datasets to exist inside the file."""
-        required_paths = [
-            f"{self.dataset_path}/{name}" for name in self.dataset_names
-        ]
-        logger.info(
-            "Waiting for datasets %s in %s", self.dataset_names, self.filename
-        )
+        required_paths = [f"{self.dataset_path}/{name}" for name in self.dataset_names]
+        logger.info("Waiting for datasets %s in %s", self.dataset_names, self.filename)
         while not self._stop_event.is_set():
             try:
                 with h5py.File(self.filename, "r", libver="latest") as f:
