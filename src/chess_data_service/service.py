@@ -46,6 +46,7 @@ class ChessDataEgressCapability(IntersectBaseCapabilityImplementation):
             callback=self._on_new_data,
             poll_interval=config.poll_interval,
             dataset_names=config.dataset_names,
+            swmr=config.swmr,
         )
         self._monitor_thread = threading.Thread(target=self._monitor.run, daemon=True)
         self._monitor_thread.start()

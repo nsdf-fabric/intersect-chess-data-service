@@ -28,12 +28,14 @@ class HDF5DatasetMonitor:
         callback: Callable[[NewMeasurementData], None],
         poll_interval: float = 0.5,
         dataset_names: list[str] | None = None,
+        swmr: bool = True,
     ):
         self.filename = filename
         self.dataset_path = dataset_path
         self.callback = callback
         self.poll_interval = poll_interval
         self.dataset_names = dataset_names or ["labx", "labz", "values"]
+        self.swmr = swmr
         self._stop_event = threading.Event()
 
     def stop(self):
@@ -67,7 +69,7 @@ class HDF5DatasetMonitor:
         logger.info("Waiting for datasets %s in %s", self.dataset_names, self.filename)
         while not self._stop_event.is_set():
             try:
-                with h5py.File(self.filename, "r", libver="latest") as f:
+                with h5py.File(self.filename, "r", libver="latest", swmr=self.swmr) as f:
                     if all(path in f for path in required_paths):
                         logger.info("All datasets found: %s", self.dataset_path)
                         return
@@ -97,7 +99,7 @@ class HDF5DatasetMonitor:
 
         while not self._stop_event.is_set():
             try:
-                with h5py.File(self.filename, "r", libver="latest") as f:
+                with h5py.File(self.filename, "r", libver="latest", swmr=self.swmr) as f:
                     dset_labx = f[labx_key]
                     dset_labz = f[labz_key]
                     dset_values = f[values_key]

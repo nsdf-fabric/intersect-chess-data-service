@@ -22,6 +22,7 @@ class TestHDF5DatasetMonitorDetectsFileCreation:
             dataset_path=dataset_path,
             callback=callback,
             poll_interval=0.1,
+            swmr=False,
         )
 
         # Start monitoring in background thread
@@ -63,6 +64,7 @@ class TestHDF5DatasetMonitorDetectsNewData:
             dataset_path=dataset_path,
             callback=callback,
             poll_interval=0.1,
+            swmr=False,
         )
 
         thread = threading.Thread(target=monitor.run, daemon=True)
@@ -112,6 +114,7 @@ class TestHDF5DatasetMonitorDetectsDatasetCreation:
             dataset_path=dataset_path,
             callback=callback,
             poll_interval=0.1,
+            swmr=False,
         )
 
         thread = threading.Thread(target=monitor.run, daemon=True)
@@ -154,6 +157,7 @@ class TestHDF5DatasetMonitorDetectsDatasetCreation:
             dataset_path=dataset_path,
             callback=callback,
             poll_interval=0.1,
+            swmr=False,
         )
 
         thread = threading.Thread(target=monitor.run, daemon=True)
@@ -189,6 +193,7 @@ class TestHDF5DatasetMonitorStopBehavior:
             dataset_path=dataset_path,
             callback=lambda d: None,
             poll_interval=0.1,
+            swmr=False,
         )
 
         thread = threading.Thread(target=monitor.run, daemon=True)
@@ -214,6 +219,7 @@ class TestHDF5DatasetMonitorEmptyStart:
             dataset_path=dataset_path,
             callback=callback,
             poll_interval=0.1,
+            swmr=False,
         )
 
         thread = threading.Thread(target=monitor.run, daemon=True)

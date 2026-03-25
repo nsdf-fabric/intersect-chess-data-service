@@ -18,6 +18,10 @@ class MonitoringConfig(BaseModel):
         default=["labx", "labz", "values"],
         description="Dataset names inside the group (x-coord, z-coord, values)",
     )
+    swmr: bool = Field(
+        default=True,
+        description="Open the HDF5 file in SWMR reader mode",
+    )
 
 
 class NewMeasurementData(BaseModel):
