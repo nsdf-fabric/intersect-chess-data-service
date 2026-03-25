@@ -113,8 +113,11 @@ class HDF5DatasetMonitor:
                             )
                             self.callback(measurement)
                         last_shape = current_shape
+            except (OSError, KeyError) as exc:
+                if not self._stop_event.is_set():
+                    logger.debug("Transient error reading HDF5, will retry: %s", exc)
             except Exception:
                 if not self._stop_event.is_set():
-                    logger.debug("Transient error reading HDF5, will retry")
+                    logger.warning("Unexpected error reading HDF5", exc_info=True)
 
             self._stop_event.wait(self.poll_interval)
