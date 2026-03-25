@@ -31,10 +31,26 @@ uv sync
 
 ```bash
 # Start with local config
-uv run python scripts/launch_service.py --config local-conf.json
+intersect-chess-data-service --config local-conf.json
 
 # Or with Docker
 docker compose up
+```
+
+### CLI Usage
+
+The `intersect-chess-data-service` command is installed as a console script:
+
+```bash
+# Use the default config file (local-conf.json)
+intersect-chess-data-service
+
+# Specify a config file
+intersect-chess-data-service --config /path/to/config.json
+
+# Or set via environment variable
+export CHESS_DATA_SERVICE_CONFIG_FILE=/path/to/config.json
+intersect-chess-data-service
 ```
 
 ### INTERSECT Message Endpoints
@@ -77,7 +93,7 @@ uv run ruff format --check
 
 ```bash
 # Build
-docker build -t chess-data-service .
+docker build -t intersect-chess-data-service .
 
 # Run with docker-compose (includes RabbitMQ broker)
 docker compose up
