@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class MonitoringConfig(BaseModel):
@@ -18,6 +18,14 @@ class MonitoringConfig(BaseModel):
         default=["labx", "labz", "values"],
         description="Dataset names inside the group (x-coord, z-coord, values)",
     )
+
+    @field_validator("dataset_names")
+    @classmethod
+    def _check_dataset_names_length(cls, v: list[str]) -> list[str]:
+        if len(v) != 3:
+            raise ValueError(f"dataset_names must contain exactly 3 items, got {len(v)}: {v!r}")
+        return v
+
     swmr: bool = Field(
         default=True,
         description="Open the HDF5 file in SWMR reader mode",

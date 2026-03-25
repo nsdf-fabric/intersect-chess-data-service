@@ -1,3 +1,5 @@
+import pytest
+
 from chess_data_service.data_models import MonitoringConfig, NewMeasurementData
 
 
@@ -33,6 +35,14 @@ class TestMonitoringConfig:
             dataset_names=["x", "z", "d"],
         )
         assert config.dataset_names == ["x", "z", "d"]
+
+    def test_dataset_names_rejects_wrong_length(self):
+        with pytest.raises(ValueError, match="exactly 3 items"):
+            MonitoringConfig(
+                filename="/path/to/file.nxs",
+                dataset_path="entry/0/uniformfit/2_2_2/centers",
+                dataset_names=["labx", "labz"],
+            )
 
 
 class TestNewMeasurementData:

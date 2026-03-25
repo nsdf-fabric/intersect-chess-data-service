@@ -35,6 +35,10 @@ class HDF5DatasetMonitor:
         self.callback = callback
         self.poll_interval = poll_interval
         self.dataset_names = dataset_names or ["labx", "labz", "values"]
+        if len(self.dataset_names) != 3:
+            raise ValueError(
+                f"dataset_names must contain exactly 3 items, got {len(self.dataset_names)}: {self.dataset_names!r}"
+            )
         self.swmr = swmr
         self._stop_event = threading.Event()
 
