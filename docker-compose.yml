@@ -1,0 +1,23 @@
+services:
+  broker:
+    image: "bitnamilegacy/rabbitmq:3.13.3"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_PLUGINS: "rabbitmq_management rabbitmq_mqtt"
+      RABBITMQ_USERNAME: "intersect_username"
+      RABBITMQ_PASSWORD: "intersect_password"
+      RABBITMQ_MANAGEMENT_ALLOW_WEB_ACCESS: "yes"
+
+  chess-data-service:
+    build: .
+    volumes:
+      - ./local-docker-conf.json:/app/local-conf.json:ro
+      - shared-data:/data:ro
+    depends_on:
+      - broker
+
+volumes:
+  shared-data:
+    driver: local
