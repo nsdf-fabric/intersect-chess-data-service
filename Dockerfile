@@ -9,6 +9,8 @@ COPY src /app/src
 
 RUN uv sync --frozen --no-dev
 
+ENV PATH="/app/.venv/bin:$PATH"
+
 COPY local-conf.json /app/local-conf.json
 
 CMD ["intersect-chess-data-service"]
