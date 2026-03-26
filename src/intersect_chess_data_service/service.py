@@ -79,4 +79,4 @@ class ChessDataEgressCapability(IntersectBaseCapabilityImplementation):
             measurement.labz,
             measurement.center_value,
         )
-        self.intersect_sdk_emit_event("new_measurement", measurement.model_dump())
+        self.intersect_sdk_emit_event("new_measurement", measurement)
