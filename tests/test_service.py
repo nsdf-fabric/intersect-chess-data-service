@@ -93,5 +93,5 @@ class TestChessDataEgressCapabilityEvents:
 
         capability.intersect_sdk_emit_event.assert_called_once_with(
             "new_measurement",
-            measurement.model_dump(),
+            measurement,
         )
