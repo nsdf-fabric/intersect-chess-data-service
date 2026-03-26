@@ -8,7 +8,7 @@ from intersect_chess_data_service.service import ChessDataEgressCapability
 class TestChessDataEgressCapabilityInit:
     def test_capability_has_correct_name(self):
         capability = ChessDataEgressCapability()
-        assert capability.intersect_sdk_capability_name == "chess-data-egress"
+        assert capability.intersect_sdk_capability_name == "chess_data_egress"
 
     def test_initial_status_is_idle(self):
         capability = ChessDataEgressCapability()

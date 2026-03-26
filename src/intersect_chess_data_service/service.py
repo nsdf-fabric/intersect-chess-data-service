@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import logging
 import threading
 
@@ -19,7 +17,7 @@ logger = logging.getLogger(__name__)
 class ChessDataEgressCapability(IntersectBaseCapabilityImplementation):
     """INTERSECT capability that monitors HDF5 files and emits events on new measurements."""
 
-    intersect_sdk_capability_name = "chess-data-egress"
+    intersect_sdk_capability_name = "chess_data_egress"
 
     intersect_sdk_events = {
         "new_measurement": IntersectEventDefinition(
