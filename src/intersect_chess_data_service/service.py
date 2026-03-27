@@ -4,6 +4,7 @@ import threading
 from intersect_sdk import (
     IntersectBaseCapabilityImplementation,
     IntersectEventDefinition,
+    intersect_event,
     intersect_message,
     intersect_status,
 )
@@ -18,13 +19,6 @@ class ChessDataEgressCapability(IntersectBaseCapabilityImplementation):
     """INTERSECT capability that monitors HDF5 files and emits events on new measurements."""
 
     intersect_sdk_capability_name = "chess_data_egress"
-
-    intersect_sdk_events = {
-        "new_measurement": IntersectEventDefinition(
-            event_type=NewMeasurementData,
-            event_documentation="Emitted when a new measurement is detected in the HDF5 file",
-        ),
-    }
 
     def __init__(self):
         super().__init__()
@@ -71,6 +65,9 @@ class ChessDataEgressCapability(IntersectBaseCapabilityImplementation):
             return "Monitoring"
         return "Idle"
 
+    @intersect_event(
+        events={"new_measurement": IntersectEventDefinition(event_type=NewMeasurementData)}
+    )
     def _on_new_data(self, measurement: NewMeasurementData):
         """Callback invoked by the monitor when new data is detected."""
         logger.info(
