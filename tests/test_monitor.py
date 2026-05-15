@@ -1,10 +1,23 @@
+import json
+import math
 import threading
 import time
 
 import h5py
 import numpy as np
 
-from intersect_chess_data_service.monitor import HDF5DatasetMonitor
+from intersect_chess_data_service.monitor import HDF5DatasetMonitor, JSONStreamResultsMonitor
+
+
+def _run_monitor_until(monitor, predicate, timeout=2.0):
+    thread = threading.Thread(target=monitor.run, daemon=True)
+    thread.start()
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline and not predicate():
+        time.sleep(0.05)
+    monitor.stop()
+    thread.join(timeout=2.0)
+    assert not thread.is_alive()
 
 
 class TestHDF5DatasetMonitorDetectsFileCreation:
@@ -241,3 +254,141 @@ class TestHDF5DatasetMonitorEmptyStart:
         assert results[0].labx == 5.0
         assert results[0].labz == 15.0
         assert results[0].center_value == 50.0
+
+
+class TestJSONStreamResultsMonitor:
+    def test_monitor_emits_existing_rows(self, sample_json):
+        results = []
+        monitor = JSONStreamResultsMonitor(
+            filename=str(sample_json),
+            callback=results.append,
+            poll_interval=0.1,
+        )
+
+        _run_monitor_until(monitor, lambda: len(results) == 3)
+
+        assert [item.labx for item in results] == [1.0, 2.0, 3.0]
+        assert [item.labz for item in results] == [4.0, 5.0, 6.0]
+        assert [item.center_value for item in results] == [10.0, 20.0, 30.0]
+
+    def test_monitor_waits_for_file_creation(self, tmp_path, sample_json_data):
+        filepath = tmp_path / "delayed_reduced_data.json"
+        results = []
+        monitor = JSONStreamResultsMonitor(
+            filename=str(filepath),
+            callback=results.append,
+            poll_interval=0.1,
+        )
+
+        thread = threading.Thread(target=monitor.run, daemon=True)
+        thread.start()
+        time.sleep(0.2)
+        filepath.write_text(json.dumps(sample_json_data), encoding="utf-8")
+        time.sleep(0.5)
+        monitor.stop()
+        thread.join(timeout=2.0)
+
+        assert len(results) == 3
+
+    def test_monitor_detects_appended_json_rows(self, sample_json, sample_json_data):
+        results = []
+        monitor = JSONStreamResultsMonitor(
+            filename=str(sample_json),
+            callback=results.append,
+            poll_interval=0.1,
+        )
+
+        thread = threading.Thread(target=monitor.run, daemon=True)
+        thread.start()
+        time.sleep(0.4)
+        initial_count = len(results)
+
+        updated = {key: list(value) for key, value in sample_json_data.items()}
+        for key, value in (
+            ("labx", 4.0),
+            ("labz", 7.0),
+            ("0/data/uniform_strain", 40.0),
+            ("0/data/unconstrained_strain", 400.0),
+            ("0/data/unconstrained_strain_stdev", 0.4),
+            ("0/uniform_fit/2_2_2/centers/values", 69.4),
+            ("0/unconstrained_fit/2_2_2/strains/values", 0.004),
+        ):
+            updated[key].append(value)
+        sample_json.write_text(json.dumps(updated), encoding="utf-8")
+
+        time.sleep(0.5)
+        monitor.stop()
+        thread.join(timeout=2.0)
+
+        assert len(results) > initial_count
+        assert results[-1].labx == 4.0
+        assert results[-1].labz == 7.0
+        assert results[-1].center_value == 40.0
+
+    def test_monitor_uses_configurable_value_key(self, sample_json):
+        results = []
+        monitor = JSONStreamResultsMonitor(
+            filename=str(sample_json),
+            value_key="0/data/unconstrained_strain",
+            callback=results.append,
+            poll_interval=0.1,
+        )
+
+        _run_monitor_until(monitor, lambda: len(results) == 3)
+
+        assert [item.center_value for item in results] == [100.0, 200.0, 300.0]
+
+    def test_monitor_skips_nan_and_null_values(self, tmp_path, sample_json_data):
+        filepath = tmp_path / "invalid_values.json"
+        data = {key: list(value) for key, value in sample_json_data.items()}
+        data["0/data/uniform_strain"] = [10.0, None, float("nan")]
+        filepath.write_text(json.dumps(data), encoding="utf-8")
+        results = []
+        monitor = JSONStreamResultsMonitor(
+            filename=str(filepath),
+            callback=results.append,
+            poll_interval=0.1,
+        )
+
+        _run_monitor_until(monitor, lambda: False, timeout=0.5)
+
+        assert len(results) == 1
+        assert results[0].center_value == 10.0
+        assert not math.isnan(results[0].center_value)
+
+    def test_monitor_survives_temporarily_malformed_json(self, tmp_path, sample_json_data):
+        filepath = tmp_path / "malformed_then_valid.json"
+        filepath.write_text('{"labx": [1.0], ', encoding="utf-8")
+        results = []
+        monitor = JSONStreamResultsMonitor(
+            filename=str(filepath),
+            callback=results.append,
+            poll_interval=0.1,
+        )
+
+        thread = threading.Thread(target=monitor.run, daemon=True)
+        thread.start()
+        time.sleep(0.2)
+        filepath.write_text(json.dumps(sample_json_data), encoding="utf-8")
+        time.sleep(0.5)
+        monitor.stop()
+        thread.join(timeout=2.0)
+
+        assert len(results) == 3
+
+    def test_monitor_handles_missing_value_key(self, sample_json_data, tmp_path):
+        filepath = tmp_path / "missing_value_key.json"
+        data = {
+            key: value for key, value in sample_json_data.items() if key != "0/data/uniform_strain"
+        }
+        filepath.write_text(json.dumps(data), encoding="utf-8")
+        results = []
+        monitor = JSONStreamResultsMonitor(
+            filename=str(filepath),
+            callback=results.append,
+            poll_interval=0.1,
+        )
+
+        _run_monitor_until(monitor, lambda: False, timeout=0.5)
+
+        assert results == []
