@@ -1,3 +1,5 @@
+import json
+
 import h5py
 import numpy as np
 import pytest
@@ -49,3 +51,24 @@ def empty_hdf5(hdf5_dir):
         grp.create_dataset("values", shape=(0,), maxshape=(None,), dtype="float64")
 
     return filepath, base_path
+
+
+@pytest.fixture
+def sample_json_data():
+    """Create a minimal flat JSON payload shaped like CHESS reduced stream results."""
+    return {
+        "labx": [1.0, 2.0, 3.0],
+        "labz": [4.0, 5.0, 6.0],
+        "0/data/uniform_strain": [10.0, 20.0, 30.0],
+        "0/data/unconstrained_strain": [100.0, 200.0, 300.0],
+        "0/data/unconstrained_strain_stdev": [0.1, 0.2, 0.3],
+        "0/uniform_fit/2_2_2/centers/values": [69.1, 69.2, 69.3],
+        "0/unconstrained_fit/2_2_2/strains/values": [0.001, 0.002, 0.003],
+    }
+
+
+@pytest.fixture
+def sample_json(tmp_path, sample_json_data):
+    filepath = tmp_path / "reduced_data.json"
+    filepath.write_text(json.dumps(sample_json_data), encoding="utf-8")
+    return filepath

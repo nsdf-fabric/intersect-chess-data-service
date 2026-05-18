@@ -10,39 +10,52 @@ from intersect_sdk import (
 )
 
 from .data_models import MonitoringConfig, NewMeasurementData
-from .monitor import HDF5DatasetMonitor
+from .monitor import HDF5DatasetMonitor, JSONStreamResultsMonitor
 
 logger = logging.getLogger(__name__)
 
 
 class ChessDataEgressCapability(IntersectBaseCapabilityImplementation):
-    """INTERSECT capability that monitors HDF5 files and emits events on new measurements."""
+    """INTERSECT capability that monitors CHESS reduced data and emits measurements."""
 
     intersect_sdk_capability_name = "chess_data_egress"
 
     def __init__(self):
         super().__init__()
-        self._monitor: HDF5DatasetMonitor | None = None
+        self._monitor: HDF5DatasetMonitor | JSONStreamResultsMonitor | None = None
         self._monitor_thread: threading.Thread | None = None
 
     @intersect_message()
     def start_monitoring(self, config: MonitoringConfig) -> str:
-        """Start monitoring an HDF5 file for new measurements."""
+        """Start monitoring a reduced data source for new measurements."""
         if self._monitor is not None:
             self.stop_monitoring()
 
-        self._monitor = HDF5DatasetMonitor(
-            filename=config.filename,
-            dataset_path=config.dataset_path,
-            callback=self._on_new_data,
-            poll_interval=config.poll_interval,
-            dataset_names=config.dataset_names,
-            swmr=config.swmr,
-        )
+        if config.source_format == "json":
+            self._monitor = JSONStreamResultsMonitor(
+                filename=config.filename,
+                labx_key=config.labx_key,
+                labz_key=config.labz_key,
+                value_key=config.value_key,
+                callback=self._on_new_data,
+                poll_interval=config.poll_interval,
+                skip_invalid_values=config.skip_invalid_values,
+            )
+        elif config.source_format == "hdf5":
+            self._monitor = HDF5DatasetMonitor(
+                filename=config.filename,
+                dataset_path=config.dataset_path or "",
+                callback=self._on_new_data,
+                poll_interval=config.poll_interval,
+                dataset_names=config.dataset_names,
+                swmr=config.swmr,
+            )
+        else:
+            raise ValueError(f"Unsupported source_format: {config.source_format}")
         self._monitor_thread = threading.Thread(target=self._monitor.run, daemon=True)
         self._monitor_thread.start()
 
-        logger.info("Monitoring started for %s", config.filename)
+        logger.info("Monitoring started for %s (%s)", config.filename, config.source_format)
         return f"Monitoring {config.filename}"
 
     @intersect_message()

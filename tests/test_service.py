@@ -19,12 +19,31 @@ class TestChessDataEgressCapabilityMonitoring:
     def test_start_monitoring_returns_status(self):
         capability = ChessDataEgressCapability()
         config = MonitoringConfig(
-            filename="/tmp/test.nxs",
-            dataset_path="entry/0/uniformfit/2_2_2/centers",
+            filename="/tmp/reduced_data.json",
         )
-        with patch("intersect_chess_data_service.service.HDF5DatasetMonitor"):
+        with patch("intersect_chess_data_service.service.JSONStreamResultsMonitor"):
             result = capability.start_monitoring(config)
         assert "Monitoring" in result
+
+    def test_start_monitoring_uses_json_monitor_by_default(self):
+        capability = ChessDataEgressCapability()
+        config = MonitoringConfig(filename="/tmp/reduced_data.json")
+        with patch("intersect_chess_data_service.service.JSONStreamResultsMonitor") as MockMonitor:
+            capability.start_monitoring(config)
+
+        MockMonitor.assert_called_once()
+
+    def test_start_monitoring_uses_hdf5_monitor_for_hdf5_config(self):
+        capability = ChessDataEgressCapability()
+        config = MonitoringConfig(
+            filename="/tmp/test.nxs",
+            source_format="hdf5",
+            dataset_path="entry/0/uniformfit/2_2_2/centers",
+        )
+        with patch("intersect_chess_data_service.service.HDF5DatasetMonitor") as MockMonitor:
+            capability.start_monitoring(config)
+
+        MockMonitor.assert_called_once()
 
     def test_status_changes_to_monitoring(self):
         capability = ChessDataEgressCapability()
