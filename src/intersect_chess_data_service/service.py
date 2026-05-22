@@ -19,7 +19,7 @@ class ChessDataEgressCapability(IntersectBaseCapabilityImplementation):
 
     intersect_sdk_capability_name = "chess_data_egress"
     intersect_sdk_events = {
-        "new_measurement": IntersectEventDefinition(event_type=NewMeasurementData)
+        "new_measurement": IntersectEventDefinition(event_type=NewMeasurementData),
     }
 
     def __init__(self):
