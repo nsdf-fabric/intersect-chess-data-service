@@ -96,11 +96,11 @@ class TestChessDataEgressCapabilityMonitoring:
 
 
 class TestChessDataEgressCapabilityEvents:
-    def test_capability_declares_event_via_decorator(self):
-        """The capability should declare the new_measurement event via @intersect_event."""
-        # The @intersect_event decorator attaches event metadata to the method
-        method = ChessDataEgressCapability._on_new_data
-        assert hasattr(method, "__intersect_sdk_events__") or callable(method)
+    def test_capability_declares_class_level_events(self):
+        """The capability should declare events via intersect_sdk_events class variable."""
+        events = ChessDataEgressCapability.intersect_sdk_events
+        assert "new_measurement" in events
+        assert events["new_measurement"].event_type is NewMeasurementData
 
     def test_on_new_data_emits_event(self):
         """When the monitor callback fires, the capability should emit an event."""
