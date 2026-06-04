@@ -234,9 +234,25 @@ class JSONStreamResultsMonitor:
                 accepted_values.append(value)
 
         if not accepted_values:
+            logger.info(
+                "average_values row %s: accepted 0/%s values with error < %s; no average emitted",
+                index,
+                len(value_arrays),
+                self.error_threshold,
+            )
             # Change this branch if a future policy should emit a fallback/null event instead.
             return None
-        return sum(accepted_values) / len(accepted_values)
+
+        average_value = sum(accepted_values) / len(accepted_values)
+        logger.info(
+            "average_values row %s: accepted %s/%s values with error < %s; average=%s",
+            index,
+            len(accepted_values),
+            len(value_arrays),
+            self.error_threshold,
+            average_value,
+        )
+        return average_value
 
 
 class HDF5DatasetMonitor:
