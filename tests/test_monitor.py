@@ -397,7 +397,7 @@ class TestJSONStreamResultsMonitor:
 
         assert results == []
 
-    def test_average_values_uses_value_keys_below_error_threshold(self, tmp_path):
+    def test_average_values_uses_pairs_below_error_threshold(self, tmp_path):
         filepath = tmp_path / "average_values.json"
         filepath.write_text(
             json.dumps(
@@ -407,7 +407,7 @@ class TestJSONStreamResultsMonitor:
                     "value_a": [10.0, 20.0, 30.0],
                     "value_a_err": [0.01, 0.06, 0.01],
                     "value_b": [100.0, 200.0, 300.0],
-                    "value_b_err": [0.02, 0.02, 0.08],
+                    "completely_custom_error_key": [0.02, 0.02, 0.08],
                 }
             ),
             encoding="utf-8",
@@ -416,8 +416,10 @@ class TestJSONStreamResultsMonitor:
         monitor = JSONStreamResultsMonitor(
             filename=str(filepath),
             json_value_mode="average_values",
-            value_keys=["value_a", "value_b"],
-            error_key_suffix="_err",
+            value_error_pairs=[
+                {"value_key": "value_a", "error_key": "value_a_err"},
+                {"value_key": "value_b", "error_key": "completely_custom_error_key"},
+            ],
             error_threshold=0.05,
             callback=results.append,
             poll_interval=0.1,
@@ -431,12 +433,21 @@ class TestJSONStreamResultsMonitor:
             30.0,
         ]
 
-    def test_average_values_uses_default_stdev_suffix(self, sample_json):
+    def test_average_values_uses_explicit_value_error_pairs(self, sample_json):
         results = []
         monitor = JSONStreamResultsMonitor(
             filename=str(sample_json),
             json_value_mode="average_values",
-            value_keys=["0/data/uniform_strain", "0/data/unconstrained_strain"],
+            value_error_pairs=[
+                {
+                    "value_key": "0/data/uniform_strain",
+                    "error_key": "0/data/uniform_strain_stdev",
+                },
+                {
+                    "value_key": "0/data/unconstrained_strain",
+                    "error_key": "0/data/unconstrained_strain_stdev",
+                },
+            ],
             error_threshold=0.05,
             callback=results.append,
             poll_interval=0.1,
@@ -458,7 +469,16 @@ class TestJSONStreamResultsMonitor:
         monitor = JSONStreamResultsMonitor(
             filename=str(filepath),
             json_value_mode="average_values",
-            value_keys=["0/data/uniform_strain", "0/data/unconstrained_strain"],
+            value_error_pairs=[
+                {
+                    "value_key": "0/data/uniform_strain",
+                    "error_key": "0/data/uniform_strain_stdev",
+                },
+                {
+                    "value_key": "0/data/unconstrained_strain",
+                    "error_key": "0/data/unconstrained_strain_stdev",
+                },
+            ],
             error_threshold=0.05,
             callback=results.append,
             poll_interval=0.1,
@@ -480,7 +500,16 @@ class TestJSONStreamResultsMonitor:
         monitor = JSONStreamResultsMonitor(
             filename=str(filepath),
             json_value_mode="average_values",
-            value_keys=["0/data/uniform_strain", "0/data/unconstrained_strain"],
+            value_error_pairs=[
+                {
+                    "value_key": "0/data/uniform_strain",
+                    "error_key": "0/data/uniform_strain_stdev",
+                },
+                {
+                    "value_key": "0/data/unconstrained_strain",
+                    "error_key": "0/data/unconstrained_strain_stdev",
+                },
+            ],
             error_threshold=0.05,
             callback=results.append,
             poll_interval=0.1,
@@ -503,7 +532,16 @@ class TestJSONStreamResultsMonitor:
         monitor = JSONStreamResultsMonitor(
             filename=str(filepath),
             json_value_mode="average_values",
-            value_keys=["0/data/uniform_strain", "0/data/unconstrained_strain"],
+            value_error_pairs=[
+                {
+                    "value_key": "0/data/uniform_strain",
+                    "error_key": "0/data/uniform_strain_stdev",
+                },
+                {
+                    "value_key": "0/data/unconstrained_strain",
+                    "error_key": "0/data/unconstrained_strain_stdev",
+                },
+            ],
             error_threshold=0.05,
             callback=results.append,
             poll_interval=0.1,

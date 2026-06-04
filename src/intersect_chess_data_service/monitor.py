@@ -10,7 +10,7 @@ from typing import Callable
 
 import h5py
 
-from .data_models import NewMeasurementData
+from .data_models import NewMeasurementData, ValueErrorPair
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +33,7 @@ class JSONStreamResultsMonitor:
         labz_key: str = "labz",
         json_value_mode: str = "single_key",
         value_key: str = "0/data/uniform_strain",
-        value_keys: list[str] | None = None,
-        error_key_suffix: str = "_stdev",
-        value_entries: list[str] | None = None,
+        value_error_pairs: list[ValueErrorPair | dict[str, str]] | None = None,
         error_threshold: float | None = None,
         skip_invalid_values: bool = True,
     ):
@@ -46,9 +44,7 @@ class JSONStreamResultsMonitor:
         self.labz_key = labz_key
         self.json_value_mode = json_value_mode
         self.value_key = value_key
-        self.value_keys = value_keys or value_entries or []
-        self.error_key_suffix = error_key_suffix
-        self.value_entries = value_entries or []
+        self.value_error_pairs = value_error_pairs or []
         self.error_threshold = error_threshold
         self.skip_invalid_values = skip_invalid_values
         self._stop_event = threading.Event()
@@ -117,8 +113,9 @@ class JSONStreamResultsMonitor:
             return None
 
         value_arrays: list[tuple[str, Sequence, Sequence]] = []
-        for value_key in self.value_keys:
-            error_key = f"{value_key}{self.error_key_suffix}"
+        for pair in self.value_error_pairs:
+            value_key = pair.value_key if isinstance(pair, ValueErrorPair) else pair["value_key"]
+            error_key = pair.error_key if isinstance(pair, ValueErrorPair) else pair["error_key"]
             try:
                 values = data[value_key]
                 errors = data[error_key]
@@ -145,7 +142,10 @@ class JSONStreamResultsMonitor:
             logger.info(
                 "Monitoring JSON results in %s using average_values keys %s",
                 self.filename,
-                self.value_keys,
+                [
+                    pair.value_key if isinstance(pair, ValueErrorPair) else pair["value_key"]
+                    for pair in self.value_error_pairs
+                ],
             )
         else:
             logger.info(

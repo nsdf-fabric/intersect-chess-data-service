@@ -1,6 +1,10 @@
 import pytest
 
-from intersect_chess_data_service.data_models import MonitoringConfig, NewMeasurementData
+from intersect_chess_data_service.data_models import (
+    MonitoringConfig,
+    NewMeasurementData,
+    ValueErrorPair,
+)
 
 
 class TestMonitoringConfig:
@@ -11,9 +15,7 @@ class TestMonitoringConfig:
         assert config.labz_key == "labz"
         assert config.json_value_mode == "single_key"
         assert config.value_key == "0/data/uniform_strain"
-        assert config.value_keys is None
-        assert config.error_key_suffix == "_stdev"
-        assert config.value_entries is None
+        assert config.value_error_pairs is None
         assert config.error_threshold is None
         assert config.skip_invalid_values is True
         assert config.dataset_path is None
@@ -23,33 +25,33 @@ class TestMonitoringConfig:
         config = MonitoringConfig(
             filename="/path/to/reduced_data.json",
             json_value_mode="average_values",
-            value_keys=[
-                "0/data/uniform_strain",
-                "0/data/unconstrained_strain",
+            value_error_pairs=[
+                {
+                    "value_key": "0/data/uniform_strain",
+                    "error_key": "0/data/uniform_strain_stdev",
+                },
+                {
+                    "value_key": "0/data/unconstrained_strain",
+                    "error_key": "0/custom/unconstrained_error",
+                },
             ],
-            error_key_suffix="_stdev",
             error_threshold=0.05,
         )
         assert config.json_value_mode == "average_values"
-        assert config.value_keys == [
-            "0/data/uniform_strain",
-            "0/data/unconstrained_strain",
+        assert config.value_error_pairs == [
+            ValueErrorPair(
+                value_key="0/data/uniform_strain",
+                error_key="0/data/uniform_strain_stdev",
+            ),
+            ValueErrorPair(
+                value_key="0/data/unconstrained_strain",
+                error_key="0/custom/unconstrained_error",
+            ),
         ]
-        assert config.error_key_suffix == "_stdev"
         assert config.error_threshold == 0.05
 
-    def test_average_values_accepts_legacy_value_entries_alias(self):
-        config = MonitoringConfig(
-            filename="/path/to/reduced_data.json",
-            json_value_mode="average_values",
-            value_entries=["0/data/unconstrained_strain"],
-            error_threshold=0.05,
-        )
-        assert config.value_keys == ["0/data/unconstrained_strain"]
-        assert config.value_entries == ["0/data/unconstrained_strain"]
-
-    def test_average_values_requires_value_keys(self):
-        with pytest.raises(ValueError, match="value_keys is required"):
+    def test_average_values_requires_value_error_pairs(self):
+        with pytest.raises(ValueError, match="value_error_pairs is required"):
             MonitoringConfig(
                 filename="/path/to/reduced_data.json",
                 json_value_mode="average_values",
@@ -57,11 +59,29 @@ class TestMonitoringConfig:
             )
 
     def test_average_values_rejects_empty_entries(self):
-        with pytest.raises(ValueError, match="value_keys"):
+        with pytest.raises(ValueError, match="value_error_pairs"):
             MonitoringConfig(
                 filename="/path/to/reduced_data.json",
                 json_value_mode="average_values",
-                value_keys=[],
+                value_error_pairs=[],
+                error_threshold=0.05,
+            )
+
+    def test_average_values_rejects_incomplete_pair(self):
+        with pytest.raises(ValueError, match="error_key"):
+            MonitoringConfig(
+                filename="/path/to/reduced_data.json",
+                json_value_mode="average_values",
+                value_error_pairs=[{"value_key": "0/data/unconstrained_strain"}],
+                error_threshold=0.05,
+            )
+
+    def test_average_values_rejects_empty_pair_key(self):
+        with pytest.raises(ValueError, match="key must not be empty"):
+            MonitoringConfig(
+                filename="/path/to/reduced_data.json",
+                json_value_mode="average_values",
+                value_error_pairs=[{"value_key": "0/data/unconstrained_strain", "error_key": ""}],
                 error_threshold=0.05,
             )
 
@@ -70,7 +90,12 @@ class TestMonitoringConfig:
             MonitoringConfig(
                 filename="/path/to/reduced_data.json",
                 json_value_mode="average_values",
-                value_keys=["0/data/unconstrained_strain"],
+                value_error_pairs=[
+                    {
+                        "value_key": "0/data/unconstrained_strain",
+                        "error_key": "0/data/unconstrained_strain_stdev",
+                    }
+                ],
             )
 
     def test_legacy_hdf5_config_is_inferred(self):

@@ -112,10 +112,10 @@ Single-key mode is the default:
 }
 ```
 
-The `average_values` mode accepts direct value array keys. For each configured
-key, the service reads the values from that exact key and reads the paired error
-array from `<value_key><error_key_suffix>`. Values are included in the row
-average only when the corresponding error is less than `error_threshold`.
+The `average_values` mode accepts explicit value/error key pairs. For each
+configured pair, the service reads values from `value_key` and paired errors
+from `error_key`. Values are included in the row average only when the
+corresponding error is less than `error_threshold`.
 
 ```json
 {
@@ -124,10 +124,12 @@ average only when the corresponding error is less than `error_threshold`.
   "labx_key": "labx",
   "labz_key": "labz",
   "json_value_mode": "average_values",
-  "value_keys": [
-    "0/data/unconstrained_strain"
+  "value_error_pairs": [
+    {
+      "value_key": "0/data/unconstrained_strain",
+      "error_key": "0/data/unconstrained_strain_stdev"
+    }
   ],
-  "error_key_suffix": "_stdev",
   "error_threshold": 0.05,
   "poll_interval": 0.5,
   "skip_invalid_values": true
