@@ -18,9 +18,29 @@ class MonitoringConfig(BaseModel):
 
     labx_key: str = Field(default="labx", description="JSON key containing lab x values")
     labz_key: str = Field(default="labz", description="JSON key containing lab z values")
+    json_value_mode: Literal["single_key", "average_values"] = Field(
+        default="single_key",
+        description="How JSON target values should be derived from stream-results arrays",
+    )
     value_key: str = Field(
         default="0/data/uniform_strain",
         description="JSON key containing the target measurement values",
+    )
+    value_keys: list[str] | None = Field(
+        default=None,
+        description="JSON value array keys used by average_values mode",
+    )
+    error_key_suffix: str = Field(
+        default="_stdev",
+        description="Suffix appended to each value key to find its paired error array",
+    )
+    value_entries: list[str] | None = Field(
+        default=None,
+        description="Deprecated alias for value_keys in average_values mode",
+    )
+    error_threshold: float | None = Field(
+        default=None,
+        description="Maximum error accepted for values used by average_values mode",
     )
     skip_invalid_values: bool = Field(
         default=True,
@@ -55,6 +75,13 @@ class MonitoringConfig(BaseModel):
             raise ValueError(f"dataset_names must contain exactly 3 items, got {len(v)}: {v!r}")
         return v
 
+    @field_validator("value_keys", "value_entries")
+    @classmethod
+    def _check_value_keys_not_empty(cls, v: list[str] | None) -> list[str] | None:
+        if v is not None and not v:
+            raise ValueError("value_keys must contain at least one key")
+        return v
+
     @model_validator(mode="after")
     def _validate_source_format_fields(self):
         if self.source_format == "hdf5":
@@ -62,6 +89,15 @@ class MonitoringConfig(BaseModel):
                 raise ValueError("dataset_path is required when source_format is 'hdf5'")
             if self.dataset_names is None:
                 self.dataset_names = ["labx", "labz", "values"]
+        elif self.source_format == "json" and self.json_value_mode == "average_values":
+            if self.value_keys is None and self.value_entries is not None:
+                self.value_keys = self.value_entries
+            if not self.value_keys:
+                raise ValueError("value_keys is required when json_value_mode is 'average_values'")
+            if self.error_threshold is None:
+                raise ValueError(
+                    "error_threshold is required when json_value_mode is 'average_values'"
+                )
         return self
 
 

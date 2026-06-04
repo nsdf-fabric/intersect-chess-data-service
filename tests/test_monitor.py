@@ -308,9 +308,13 @@ class TestJSONStreamResultsMonitor:
             ("labx", 4.0),
             ("labz", 7.0),
             ("0/data/uniform_strain", 40.0),
+            ("0/data/uniform_strain_stdev", 0.04),
             ("0/data/unconstrained_strain", 400.0),
             ("0/data/unconstrained_strain_stdev", 0.4),
             ("0/uniform_fit/2_2_2/centers/values", 69.4),
+            ("0/uniform_fit/2_2_2/centers/errors", 0.04),
+            ("0/uniform_fit/3_1_1/centers/values", 66.4),
+            ("0/uniform_fit/3_1_1/centers/errors", 0.04),
             ("0/unconstrained_fit/2_2_2/strains/values", 0.004),
         ):
             updated[key].append(value)
@@ -392,3 +396,119 @@ class TestJSONStreamResultsMonitor:
         _run_monitor_until(monitor, lambda: False, timeout=0.5)
 
         assert results == []
+
+    def test_average_values_uses_value_keys_below_error_threshold(self, tmp_path):
+        filepath = tmp_path / "average_values.json"
+        filepath.write_text(
+            json.dumps(
+                {
+                    "labx": [1.0, 2.0, 3.0],
+                    "labz": [4.0, 5.0, 6.0],
+                    "value_a": [10.0, 20.0, 30.0],
+                    "value_a_err": [0.01, 0.06, 0.01],
+                    "value_b": [100.0, 200.0, 300.0],
+                    "value_b_err": [0.02, 0.02, 0.08],
+                }
+            ),
+            encoding="utf-8",
+        )
+        results = []
+        monitor = JSONStreamResultsMonitor(
+            filename=str(filepath),
+            json_value_mode="average_values",
+            value_keys=["value_a", "value_b"],
+            error_key_suffix="_err",
+            error_threshold=0.05,
+            callback=results.append,
+            poll_interval=0.1,
+        )
+
+        _run_monitor_until(monitor, lambda: len(results) == 3)
+
+        assert [item.center_value for item in results] == [
+            (10.0 + 100.0) / 2,
+            200.0,
+            30.0,
+        ]
+
+    def test_average_values_uses_default_stdev_suffix(self, sample_json):
+        results = []
+        monitor = JSONStreamResultsMonitor(
+            filename=str(sample_json),
+            json_value_mode="average_values",
+            value_keys=["0/data/uniform_strain", "0/data/unconstrained_strain"],
+            error_threshold=0.05,
+            callback=results.append,
+            poll_interval=0.1,
+        )
+
+        _run_monitor_until(monitor, lambda: len(results) == 2)
+
+        assert [item.center_value for item in results] == [10.0, 30.0]
+
+    def test_average_values_skips_rows_when_no_entry_passes_threshold(
+        self, tmp_path, sample_json_data
+    ):
+        filepath = tmp_path / "no_average_values.json"
+        data = {key: list(value) for key, value in sample_json_data.items()}
+        data["0/data/uniform_strain_stdev"] = [0.9, 0.9, 0.9]
+        data["0/data/unconstrained_strain_stdev"] = [0.9, 0.9, 0.9]
+        filepath.write_text(json.dumps(data), encoding="utf-8")
+        results = []
+        monitor = JSONStreamResultsMonitor(
+            filename=str(filepath),
+            json_value_mode="average_values",
+            value_keys=["0/data/uniform_strain", "0/data/unconstrained_strain"],
+            error_threshold=0.05,
+            callback=results.append,
+            poll_interval=0.1,
+        )
+
+        _run_monitor_until(monitor, lambda: False, timeout=0.5)
+
+        assert results == []
+
+    def test_average_values_ignores_invalid_value_error_pairs(self, tmp_path, sample_json_data):
+        filepath = tmp_path / "invalid_average_values.json"
+        data = {key: list(value) for key, value in sample_json_data.items()}
+        data["0/data/uniform_strain"] = [69.1, None, 69.3]
+        data["0/data/uniform_strain_stdev"] = [0.01, 0.01, float("nan")]
+        data["0/data/unconstrained_strain"] = [66.1, 66.2, 66.3]
+        data["0/data/unconstrained_strain_stdev"] = [0.02, 0.02, 0.02]
+        filepath.write_text(json.dumps(data), encoding="utf-8")
+        results = []
+        monitor = JSONStreamResultsMonitor(
+            filename=str(filepath),
+            json_value_mode="average_values",
+            value_keys=["0/data/uniform_strain", "0/data/unconstrained_strain"],
+            error_threshold=0.05,
+            callback=results.append,
+            poll_interval=0.1,
+        )
+
+        _run_monitor_until(monitor, lambda: len(results) == 3)
+
+        assert [item.center_value for item in results] == [
+            (69.1 + 66.1) / 2,
+            66.2,
+            66.3,
+        ]
+
+    def test_average_values_handles_uneven_arrays(self, tmp_path, sample_json_data):
+        filepath = tmp_path / "uneven_average_values.json"
+        data = {key: list(value) for key, value in sample_json_data.items()}
+        data["0/data/unconstrained_strain_stdev"] = [0.02, 0.02]
+        filepath.write_text(json.dumps(data), encoding="utf-8")
+        results = []
+        monitor = JSONStreamResultsMonitor(
+            filename=str(filepath),
+            json_value_mode="average_values",
+            value_keys=["0/data/uniform_strain", "0/data/unconstrained_strain"],
+            error_threshold=0.05,
+            callback=results.append,
+            poll_interval=0.1,
+        )
+
+        _run_monitor_until(monitor, lambda: len(results) == 2)
+
+        assert len(results) == 2

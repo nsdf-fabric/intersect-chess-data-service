@@ -31,7 +31,12 @@ class JSONStreamResultsMonitor:
         poll_interval: float = 0.5,
         labx_key: str = "labx",
         labz_key: str = "labz",
+        json_value_mode: str = "single_key",
         value_key: str = "0/data/uniform_strain",
+        value_keys: list[str] | None = None,
+        error_key_suffix: str = "_stdev",
+        value_entries: list[str] | None = None,
+        error_threshold: float | None = None,
         skip_invalid_values: bool = True,
     ):
         self.filename = filename
@@ -39,7 +44,12 @@ class JSONStreamResultsMonitor:
         self.poll_interval = poll_interval
         self.labx_key = labx_key
         self.labz_key = labz_key
+        self.json_value_mode = json_value_mode
         self.value_key = value_key
+        self.value_keys = value_keys or value_entries or []
+        self.error_key_suffix = error_key_suffix
+        self.value_entries = value_entries or []
+        self.error_threshold = error_threshold
         self.skip_invalid_values = skip_invalid_values
         self._stop_event = threading.Event()
 
@@ -64,14 +74,15 @@ class JSONStreamResultsMonitor:
                 return
             self._stop_event.wait(self.poll_interval)
 
-    def _load_arrays(self) -> tuple[Sequence, Sequence, Sequence] | None:
+    def _load_json(self) -> dict | None:
         try:
             with open(self.filename, encoding="utf-8") as f:
-                data = json.load(f)
+                return json.load(f)
         except (OSError, json.JSONDecodeError) as exc:
             logger.debug("Transient error reading JSON, will retry: %s", exc)
             return None
 
+    def _load_single_key_arrays(self, data: dict) -> tuple[Sequence, Sequence, Sequence] | None:
         try:
             labx = data[self.labx_key]
             labz = data[self.labz_key]
@@ -91,31 +102,94 @@ class JSONStreamResultsMonitor:
 
         return labx, labz, values
 
+    def _load_average_value_arrays(
+        self, data: dict
+    ) -> tuple[Sequence, Sequence, list[tuple[str, Sequence, Sequence]]] | None:
+        try:
+            labx = data[self.labx_key]
+            labz = data[self.labz_key]
+        except KeyError as exc:
+            logger.warning("Required JSON key missing while monitoring %s: %s", self.filename, exc)
+            return None
+
+        if not isinstance(labx, list) or not isinstance(labz, list):
+            logger.warning("JSON keys %s and %s must contain arrays", self.labx_key, self.labz_key)
+            return None
+
+        value_arrays: list[tuple[str, Sequence, Sequence]] = []
+        for value_key in self.value_keys:
+            error_key = f"{value_key}{self.error_key_suffix}"
+            try:
+                values = data[value_key]
+                errors = data[error_key]
+            except KeyError as exc:
+                logger.warning(
+                    "Required JSON key missing while monitoring %s: %s", self.filename, exc
+                )
+                return None
+
+            if not isinstance(values, list) or not isinstance(errors, list):
+                logger.warning("JSON keys %s and %s must contain arrays", value_key, error_key)
+                return None
+            value_arrays.append((value_key, values, errors))
+
+        if not value_arrays:
+            logger.warning("average_values mode requires at least one value key")
+            return None
+
+        return labx, labz, value_arrays
+
     def _poll_for_changes(self):
         """Poll the JSON file and emit each newly appended valid row."""
-        logger.info(
-            "Monitoring JSON results in %s using keys (%s, %s, %s)",
-            self.filename,
-            self.labx_key,
-            self.labz_key,
-            self.value_key,
-        )
+        if self.json_value_mode == "average_values":
+            logger.info(
+                "Monitoring JSON results in %s using average_values keys %s",
+                self.filename,
+                self.value_keys,
+            )
+        else:
+            logger.info(
+                "Monitoring JSON results in %s using keys (%s, %s, %s)",
+                self.filename,
+                self.labx_key,
+                self.labz_key,
+                self.value_key,
+            )
 
         last_index = 0
         while not self._stop_event.is_set():
-            arrays = self._load_arrays()
-            if arrays is None:
+            data = self._load_json()
+            if data is None:
                 self._stop_event.wait(self.poll_interval)
                 continue
 
-            labx, labz, values = arrays
-            current_len = min(len(labx), len(labz), len(values))
+            if self.json_value_mode == "average_values":
+                arrays = self._load_average_value_arrays(data)
+                if arrays is None:
+                    self._stop_event.wait(self.poll_interval)
+                    continue
+                labx, labz, value_arrays = arrays
+                current_len = min(
+                    len(labx),
+                    len(labz),
+                    *(min(len(values), len(errors)) for _, values, errors in value_arrays),
+                )
+            else:
+                arrays = self._load_single_key_arrays(data)
+                if arrays is None:
+                    self._stop_event.wait(self.poll_interval)
+                    continue
+                labx, labz, values = arrays
+                current_len = min(len(labx), len(labz), len(values))
 
             if current_len > last_index:
                 for i in range(last_index, current_len):
                     raw_labx = labx[i]
                     raw_labz = labz[i]
-                    raw_value = values[i]
+                    if self.json_value_mode == "average_values":
+                        raw_value = self._average_value_for_row(i, value_arrays)
+                    else:
+                        raw_value = values[i]
 
                     if self.skip_invalid_values and (
                         _is_invalid_value(raw_labx)
@@ -139,6 +213,30 @@ class JSONStreamResultsMonitor:
                 last_index = current_len
 
             self._stop_event.wait(self.poll_interval)
+
+    def _average_value_for_row(
+        self, index: int, value_arrays: list[tuple[str, Sequence, Sequence]]
+    ) -> float | None:
+        accepted_values: list[float] = []
+        for _value_key, values, errors in value_arrays:
+            raw_value = values[index]
+            raw_error = errors[index]
+            if _is_invalid_value(raw_value) or _is_invalid_value(raw_error):
+                continue
+
+            try:
+                value = float(raw_value)
+                error = float(raw_error)
+            except (TypeError, ValueError):
+                continue
+
+            if error < (self.error_threshold or 0):
+                accepted_values.append(value)
+
+        if not accepted_values:
+            # Change this branch if a future policy should emit a fallback/null event instead.
+            return None
+        return sum(accepted_values) / len(accepted_values)
 
 
 class HDF5DatasetMonitor:
