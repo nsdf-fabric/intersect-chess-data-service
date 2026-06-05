@@ -97,13 +97,40 @@ Measurement arrays are stored under flat string keys, for example:
 Rows line up by index. For row `i`, the service reads
 `data[labx_key][i]`, `data[labz_key][i]`, and `data[value_key][i]`.
 
+Single-key mode is the default:
+
 ```json
 {
   "source_format": "json",
   "filename": "/path/to/reduced_data.json",
   "labx_key": "labx",
   "labz_key": "labz",
+  "json_value_mode": "single_key",
   "value_key": "0/data/uniform_strain",
+  "poll_interval": 0.5,
+  "skip_invalid_values": true
+}
+```
+
+The `average_values` mode accepts explicit value/error key pairs. For each
+configured pair, the service reads values from `value_key` and paired errors
+from `error_key`. Values are included in the row average only when the
+corresponding error is less than `error_threshold`.
+
+```json
+{
+  "source_format": "json",
+  "filename": "/path/to/reduced_data.json",
+  "labx_key": "labx",
+  "labz_key": "labz",
+  "json_value_mode": "average_values",
+  "value_error_pairs": [
+    {
+      "value_key": "0/data/unconstrained_strain",
+      "error_key": "0/data/unconstrained_strain_stdev"
+    }
+  ],
+  "error_threshold": 0.05,
   "poll_interval": 0.5,
   "skip_invalid_values": true
 }

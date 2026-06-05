@@ -60,9 +60,13 @@ def sample_json_data():
         "labx": [1.0, 2.0, 3.0],
         "labz": [4.0, 5.0, 6.0],
         "0/data/uniform_strain": [10.0, 20.0, 30.0],
+        "0/data/uniform_strain_stdev": [0.01, 0.06, 0.01],
         "0/data/unconstrained_strain": [100.0, 200.0, 300.0],
         "0/data/unconstrained_strain_stdev": [0.1, 0.2, 0.3],
         "0/uniform_fit/2_2_2/centers/values": [69.1, 69.2, 69.3],
+        "0/uniform_fit/2_2_2/centers/errors": [0.01, 0.02, 0.03],
+        "0/uniform_fit/3_1_1/centers/values": [66.1, 66.2, 66.3],
+        "0/uniform_fit/3_1_1/centers/errors": [0.02, 0.06, 0.01],
         "0/unconstrained_fit/2_2_2/strains/values": [0.001, 0.002, 0.003],
     }
 

@@ -33,6 +33,26 @@ class TestChessDataEgressCapabilityMonitoring:
 
         MockMonitor.assert_called_once()
 
+    def test_start_monitoring_passes_average_values_json_config(self):
+        capability = ChessDataEgressCapability()
+        config = MonitoringConfig(
+            filename="/tmp/reduced_data.json",
+            json_value_mode="average_values",
+            value_error_pairs=[
+                {
+                    "value_key": "0/data/unconstrained_strain",
+                    "error_key": "0/data/unconstrained_strain_stdev",
+                }
+            ],
+            error_threshold=0.05,
+        )
+        with patch("intersect_chess_data_service.service.JSONStreamResultsMonitor") as MockMonitor:
+            capability.start_monitoring(config)
+
+        assert MockMonitor.call_args.kwargs["json_value_mode"] == "average_values"
+        assert MockMonitor.call_args.kwargs["value_error_pairs"] == config.value_error_pairs
+        assert MockMonitor.call_args.kwargs["error_threshold"] == 0.05
+
     def test_start_monitoring_uses_hdf5_monitor_for_hdf5_config(self):
         capability = ChessDataEgressCapability()
         config = MonitoringConfig(
